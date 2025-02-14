@@ -9,7 +9,7 @@ function App() {
     const handleSearch = async () => {
         try {
             const response = await axios.get(`http://localhost:5000/api/products/search?q=${query}`);
-            setProducts(response.data); // Store fetched data in state
+            setProducts(response.data);
         } catch (error) {
             console.error("Error fetching data", error);
         }
@@ -30,13 +30,15 @@ function App() {
             <div className="product-list">
                 {products.length > 0 ? (
                     products.map((product) => (
-                        <div key={product._id} className="product-card">
-                            <h2>{product.product_name}</h2>
-                            <p><strong>Brand:</strong> {product.brand}</p>
-                            <p><strong>Price:</strong> {product.price}</p>
-                            <p><strong>MRP:</strong> {product.mrp}</p>
-                            <img src={product.image_url} alt={product.product_name} />
-                            <a href={product.link} target="_blank" rel="noopener noreferrer">View Product</a>
+                        <div key={product._id || product.id} className="product-card">
+                            <h2>{product.name || product.Title}</h2>
+                            <p><strong>Brand:</strong> {product.brand || product.Label}</p>
+                            <p><strong>Price:</strong> {product.price || product.Field9}</p>
+                            {product["coupons and offers"] && <p><strong>Coupons & Offers:</strong> {product["coupons and offers"]}</p>}
+                            {product.Image && <img src={product.Image} alt={product.Title} />}
+                            {product["image-src"] && <img src={product["image-src"]} alt={product.name} />}
+                            <a href={product["link-href"] || product.Title_URL} target="_blank" rel="noopener noreferrer">View Product</a>
+                            
                         </div>
                     ))
                 ) : (
