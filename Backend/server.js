@@ -8,84 +8,89 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB Connection
+mongoose.set("strictQuery", false);
 mongoose
   .connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("✅ MongoDB Connected"))
   .catch((err) => console.error("❌ MongoDB Connection Failed", err));
 
-// Define Zepto Schema
+// Define Schemas
 const ZeptoSchema = new mongoose.Schema(
   {
     _id: String,
-    "web-scraper-order": String,
-    "web-scraper-start-url": String,
-    link: String,
-    "link-href": String,
     brand: String,
     name: String,
     price: String,
-    "coupons and offers": String,
     "image-src": String,
-    "seller deta": String,
-    highlight: String,
   },
-  { collection: "Zepto" } // Explicit collection name
+  { collection: "Zepto" }
 );
-
 const Zepto = mongoose.model("Zepto", ZeptoSchema);
 
-// Define big_basket Schema
 const BigBasketSchema = new mongoose.Schema(
   {
     id: String,
     Title: String,
-    Title_URL: String,
     Image: String,
-    Like: String,
     Label: String,
-    Label1: String,
-    Label3: String,
-    Label4: String,
-    Field9: String,
-    Field10: String,
-    Field11: String,
   },
-  { collection: "big_basket" } // Explicit collection name
+  { collection: "big_basket" }
 );
-
 const BigBasket = mongoose.model("big_basket", BigBasketSchema);
 
-// Search API
+const SwiggySchema = new mongoose.Schema(
+  {
+    _id: String,
+    name: String,
+    image: String,
+    price: String,
+    discount: String,
+  },
+  { collection: "swiggy" }
+);
+const Swiggy = mongoose.model("Swiggy", SwiggySchema);
+
+const BlinkitSchema = new mongoose.Schema(
+  {
+    _id: String,
+    name: String,
+    image: String,
+    price: String,
+    discount: String,
+  },
+  { collection: "blinkit" }
+);
+const Blinkit = mongoose.model("Blinkit", BlinkitSchema);
+
+// Search API with proper limiting
 app.get("/api/products/search", async (req, res) => {
   const query = req.query.q;
-  console.log("Search query:", query);
+  console.log("🔍 Search Query:", query);
 
   try {
-    // Search Zepto collection
-    const zeptoResults = await Zepto.find({
-      $or: [
-        { name: { $regex: query, $options: "i" } },
-        { brand: { $regex: query, $options: "i" } },
-      ],
-    });
-    
-    // Search big_basket collection
-    const bigBasketResults = await BigBasket.find({
-      $or: [
-        { Title: { $regex: query, $options: "i" } },
-        { Label: { $regex: query, $options: "i" } },
-      ],
-    });
-    
-    // Combine results
+    const [zeptoResults, bigBasketResults, swiggyResults, blinkitResults] = await Promise.all([
+      Zepto.find({ name: { $regex: query, $options: "i" } }).limit(5).lean(),
+      BigBasket.find({ Title: { $regex: query, $options: "i" } }).limit(5).lean(),
+      Swiggy.find({ name: { $regex: query, $options: "i" } }).limit(5).lean(),
+      Blinkit.find({ name: { $regex: query, $options: "i" } }).limit(5).lean(),
+    ]);
+
+    console.log("✅ Zepto Found:", zeptoResults.length);
+    console.log("✅ BigBasket Found:", bigBasketResults.length);
+    console.log("✅ Swiggy Found:", swiggyResults.length);
+    console.log("✅ Blinkit Found:", blinkitResults.length);
+
+    // Enforce exact limit of 5 results per source
     const combinedResults = [
-      ...zeptoResults.map((item) => ({ ...item._doc, source: "Zepto" })),
-      ...bigBasketResults.map((item) => ({ ...item._doc, source: "BigBasket" })),
+      ...zeptoResults.slice(0, 5).map((item) => ({ ...item, source: "Zepto" })),
+      ...bigBasketResults.slice(0, 5).map((item) => ({ ...item, source: "BigBasket" })),
+      ...swiggyResults.slice(0, 5).map((item) => ({ ...item, source: "Swiggy" })),
+      ...blinkitResults.slice(0, 5).map((item) => ({ ...item, source: "Blinkit" })),
     ];
 
-    res.json(combinedResults); // Send combined results to the frontend
+    res.json(combinedResults);
   } catch (error) {
-    console.error("Error during search:", error);
+    console.error("❌ Error during search:", error);
     res.status(500).json({ error: "Server Error" });
   }
 });
